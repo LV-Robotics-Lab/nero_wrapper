@@ -136,8 +136,11 @@ NERO_CONTAINER_NAME=nero-humble-s15-diagnostics \
 
 ## Acceptance Checks
 
-- `bash -n scripts/*.sh`
-- `python3 -m py_compile scripts/*.py examples/*.py`
+- `python -m pip install -e '.[dev]'`
+- `ruff check src tests examples/nero_read_state.py`
+- `pytest`
+- `python -m compileall -q src examples scripts`
+- `bash -n config/nero.env setup.sh scripts/*.sh docker/humble/entrypoint.sh`
 - `bash scripts/check_environment.sh`
-- Use `rg 'docs/' README.md README_EN.md PLAN.md PLAN_EN.md agent.md config scripts docs --glob '!docs/vendor/**'` to spot-check paths.
+- Use `rg 'docs/' README.md README_EN.md PLAN.md PLAN_EN.md CONTRIBUTING.md config scripts docs --glob '!docs/vendor/**'` to spot-check paths.
 - `git status --short` should only show expected directory moves, document additions/updates, and cleanup of accidental files.

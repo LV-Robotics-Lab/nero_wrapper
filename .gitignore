@@ -5,6 +5,11 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+
+# Workstation-specific settings and credentials
+config/nero.local.env
 
 # Local agent/runtime metadata
 .agents/

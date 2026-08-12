@@ -28,13 +28,16 @@
   install/
   log/
 
-/home/lv-robotics/workspace/nero-perception-control/arm-hand-duo/
+/home/lv-robotics/workspace/nero_wrapper/
   README.md
+  pyproject.toml
   config/
   docs/
   docker/
   examples/
   scripts/
+  src/nero_wrapper/
+  tests/
   upstream/
 ```
 
@@ -76,10 +79,10 @@
 | 项目 | 值 |
 | --- | --- |
 | Wi-Fi SSID | `agx-7ax-xx` |
-| Wi-Fi 密码 | `12345678` |
+| Wi-Fi 密码 | 从实验室凭据存储获取；不写入仓库 |
 | Wi-Fi Web 地址 | `http://192.168.31.1/` |
 | Web 账号 | `admin` |
-| Web 密码 | `123456` |
+| Web 密码 | 从实验室凭据存储获取；不写入仓库 |
 | 有线默认 IP | `10.90.0.150` |
 | 主机静态 IP 示例 | `10.90.0.153/24` |
 | 网关 | 留空 |

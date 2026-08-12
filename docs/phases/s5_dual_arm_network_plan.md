@@ -15,7 +15,7 @@ Date: 2026-06-24, updated 2026-06-25
   `docs/evidence/pics/网络配置页面截图.png`.
 - Earlier Arm A hotspot configuration visible in the screenshot:
   - hotspot name: `agx-7ax-xin`
-  - hotspot password: `12345678`
+  - hotspot password: redacted; obtain the current value from the lab credential store
   - hotspot channel: `9`
 - The operator later changed the hotspots to unique names:
   - Arm A: `agx-7ax-armA`
@@ -26,7 +26,7 @@ Date: 2026-06-24, updated 2026-06-25
 Manual facts:
 
 - Default Wi-Fi SSID pattern: `agx-7ax-xx`.
-- Default Wi-Fi password: `12345678`.
+- Default Wi-Fi password: redacted; do not copy credentials into tracked documentation.
 - Default Wi-Fi Web address: `http://192.168.31.1/`.
 - Default wired controller IP: `10.90.0.150`.
 - Wired access requires the PC to use a static IP in the same subnet, for

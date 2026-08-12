@@ -136,8 +136,11 @@ NERO_CONTAINER_NAME=nero-humble-s15-diagnostics \
 
 ## 验收检查
 
-- `bash -n scripts/*.sh`
-- `python3 -m py_compile scripts/*.py examples/*.py`
+- `python -m pip install -e '.[dev]'`
+- `ruff check src tests examples/nero_read_state.py`
+- `pytest`
+- `python -m compileall -q src examples scripts`
+- `bash -n config/nero.env setup.sh scripts/*.sh docker/humble/entrypoint.sh`
 - `bash scripts/check_environment.sh`
-- `rg 'docs/' README.md README_EN.md PLAN.md PLAN_EN.md agent.md config scripts docs --glob '!docs/vendor/**'` 抽查路径是否有效。
+- `rg 'docs/' README.md README_EN.md PLAN.md PLAN_EN.md CONTRIBUTING.md config scripts docs --glob '!docs/vendor/**'` 抽查路径是否有效。
 - `git status --short` 只应包含预期的目录移动、文档新增/更新和误生成文件清理。

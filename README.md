@@ -1,13 +1,16 @@
-# NERO Arm-Hand Duo Workspace
+# nero_wrapper
 
-本仓库是 `nero-perception-control` 大工作区下的双臂双手控制子仓库，保留 NERO 双七自由度机械臂 + 双 LinkerHand L6 灵巧手的固定操作流程、脚本入口、设备映射、验收证据和历史开发档案。当前默认演示是双臂双手 elbow-curl/fist：双臂弯曲，双手半握拳，再回到安全姿态。相机和外部采集设备调试放在 sibling workspace 中维护。
+面向 AgileX NERO 双七自由度机械臂 + 双 LinkerHand L6 的安全 Python wrapper 和现场操作仓库。它提供无 ROS 依赖的类型化配置、只读状态访问、主机/CAN 诊断和可复用安全门；已经在真机上验收的 ROS2 与动作入口仍保留在 `scripts/`，避免重构改变现场语义。
+
+当前 package API 故意不提供运动方法。真实动作仍必须使用已验收脚本，并遵守 dry-run、急停、空间清空、控制源互斥和反馈可见性门禁。
 
 English entry: [README_EN.md](README_EN.md)  
 完整流程计划: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 
 ## 重要文档
 
-- [Agent Operating Rules](agent.md): 后续协作者必须遵守的事实源、记录和安全规则。
+- [贡献与真机安全规则](CONTRIBUTING.md): 代码边界、验证方式和真机门禁。
+- [文档地图](docs/README.md): 当前操作文档与历史证据的边界。
 - [当前 Bring-Up 状态](docs/status/current_bringup_status.md): 当前配置、验收结果和下一步。
 - [部署日志](docs/status/deployment_log.md): 每一步真实执行、证据、风险和后续动作。
 - [Bring-Up Checklist](docs/status/bringup_checklist.md): 现场复验清单。
@@ -18,11 +21,13 @@ English entry: [README_EN.md](README_EN.md)
 
 ```text
 .
-├── config/                 # 固定环境变量和设备映射
+├── src/nero_wrapper/       # 可安装、无 ROS 依赖的只读 wrapper
+├── tests/                  # 配置、SDK 生命周期、诊断和安全门测试
+├── config/                 # 非敏感默认值和本地配置模板
 ├── docker/                 # ROS2 Humble 容器
-├── examples/               # SDK-only 示例
+├── examples/               # package 兼容入口
 ├── rviz/                   # RViz 配置
-├── scripts/                # 已验收操作脚本，公开 wrapper + 历史开发脚本
+├── scripts/                # 已验收现场脚本和历史开发入口
 ├── docs/
 │   ├── status/             # 当前状态、日志、checklist、工程框架
 │   ├── phases/             # 历史阶段计划、设计和操作流程
@@ -32,6 +37,20 @@ English entry: [README_EN.md](README_EN.md)
 │   └── upstream/           # 上游仓库分析和 review
 └── upstream/               # ignored，本地上游源码证据缓存
 ```
+
+## 安装和只读自检
+
+```bash
+./setup.sh
+source .venv/bin/activate
+source config/nero.env
+
+nero-config
+nero-doctor --skip-can
+nero-read-state --arm arm_a
+```
+
+`nero-read-state` 默认只打印配置，不连接硬件。确认 SocketCAN 已激活并安装厂商 `pyAgxArm` SDK 后，显式加 `--connect` 才读取反馈；它仍不会使能或移动机械臂。机器专属设置从 `config/nero.local.env.example` 复制到被 git 忽略的 `config/nero.local.env`。
 
 ## 固定控制架构
 
@@ -59,7 +78,7 @@ English entry: [README_EN.md](README_EN.md)
 
 ### 2. 逐台进入 Web 控制并使能
 
-主机内置 Wi-Fi 同一时间只能连一个机械臂热点，所以按 Arm A、Arm B 逐台操作。每次 Web 地址都是 `http://192.168.31.1/`，账号 `admin`，密码 `123456`。
+主机内置 Wi-Fi 同一时间只能连一个机械臂热点，所以按 Arm A、Arm B 逐台操作。Web 地址默认为 `http://192.168.31.1/`；账号与密码从实验室凭据存储获取，并只写入本机 `config/nero.local.env`，不要提交到仓库。
 
 1. 连接 Wi-Fi `agx-7ax-armA`，打开 `http://192.168.31.1/`。
 2. 确认首页没有红色异常；如有异常，先记录并处理。

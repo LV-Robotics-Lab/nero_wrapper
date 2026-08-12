@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nero_wrapper"
+version = "0.1.0"
+description = "Safe, configuration-first Python wrapper for the AgileX NERO dual-arm system."
+readme = "README_EN.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+nero-config = "nero_wrapper.cli:config_main"
+nero-doctor = "nero_wrapper.cli:doctor_main"
+nero-read-state = "nero_wrapper.cli:read_state_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Keep the field-accepted legacy example byte-for-byte compatible.
+"examples/nero_read_state.py" = ["B904"]

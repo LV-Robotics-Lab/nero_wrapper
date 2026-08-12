@@ -845,10 +845,11 @@ Commands / evidence:
 - Screenshot: Arm A Web network page at
   `http://192.168.31.1/#/settings/sys`.
 - Screenshot: Arm A hotspot name `agx-7ax-xin`.
-- Screenshot: Arm A hotspot password `12345678`.
+- Screenshot: Arm A hotspot password was visible; the value is intentionally
+  omitted from tracked text.
 - Screenshot: Arm A hotspot channel `9`.
-- Manual section 4.1: default Wi-Fi SSID pattern `agx-7ax-xx`, password
-  `12345678`, Web address `192.168.31.1`, login `admin/123456`.
+- Manual section 4.1: default Wi-Fi SSID pattern `agx-7ax-xx`, Web address
+  `192.168.31.1`, and a Web login. Credential values are intentionally omitted.
 - Manual section 4.2: default wired controller IP `10.90.0.150`; host must use
   the same subnet, example `10.90.0.153/255.255.255.0`.
 - Manual section 7.1/7.2: Web supports network-port configuration and hotspot

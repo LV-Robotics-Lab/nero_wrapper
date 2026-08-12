@@ -1,13 +1,16 @@
-# NERO Arm-Hand Duo Workspace
+# nero_wrapper
 
-This repository is the arm-hand control workspace under the top-level `nero-perception-control` workspace. It keeps the fixed operating workflow, script entry points, device mapping, validation evidence, and archived development records for the NERO dual 7-DOF arm system with two LinkerHand L6 dexterous hands. The default demo is a dual-arm dual-hand elbow-curl/fist motion: both arms curl, both hands make a half fist, then the system returns to a safe posture. Camera and external acquisition-device bring-up live in sibling workspaces.
+A safe Python wrapper and field-operations repository for two AgileX NERO 7-DOF arms with two LinkerHand L6 hands. It adds typed ROS-independent configuration, read-only state access, host/CAN diagnostics, and reusable safety gates. Field-accepted ROS2 and motion entry points remain under `scripts/` so the refactor does not silently change their real-robot behavior.
+
+The package API intentionally exposes no motion method. Real motion must continue through accepted scripts with dry-run, emergency-stop, clearance, exclusive-control, and visible-feedback gates.
 
 Chinese entry: [README.md](README.md)  
 Full workflow: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 
 ## Important Documents
 
-- [Agent Operating Rules](agent.md): Required facts, logging rules, and safety discipline for future collaborators.
+- [Contributing and real-robot safety](CONTRIBUTING.md): Code boundaries, validation, and hardware gates.
+- [Documentation map](docs/README.md): Boundary between current guidance and historical evidence.
 - [Current Bring-Up Status](docs/status/current_bringup_status.md): Current configuration, accepted results, and next step.
 - [Deployment Log](docs/status/deployment_log.md): Actual commands, evidence, decisions, risks, and next actions.
 - [Bring-Up Checklist](docs/status/bringup_checklist.md): Field checklist for revalidation.
@@ -18,11 +21,13 @@ Full workflow: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 
 ```text
 .
-├── config/                 # Stable environment variables and device mapping
+├── src/nero_wrapper/       # Installable, ROS-independent read-only wrapper
+├── tests/                  # Config, SDK lifecycle, doctor, and safety tests
+├── config/                 # Non-secret defaults and local configuration template
 ├── docker/                 # ROS2 Humble container
-├── examples/               # SDK-only examples
+├── examples/               # Package compatibility entry points
 ├── rviz/                   # RViz configuration
-├── scripts/                # Accepted operation scripts, public wrappers, archived development scripts
+├── scripts/                # Accepted field scripts and historical development entry points
 ├── docs/
 │   ├── status/             # Current status, logs, checklist, framework
 │   ├── phases/             # Archived phase plans, designs, procedures
@@ -32,6 +37,20 @@ Full workflow: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 │   └── upstream/           # Upstream analysis and reviews
 └── upstream/               # Ignored local upstream source cache
 ```
+
+## Install And Run Read-Only Checks
+
+```bash
+./setup.sh
+source .venv/bin/activate
+source config/nero.env
+
+nero-config
+nero-doctor --skip-can
+nero-read-state --arm arm_a
+```
+
+`nero-read-state` prints configuration without connecting by default. Add `--connect` only after SocketCAN is active and the vendor `pyAgxArm` SDK is installed; the command still never enables or moves the arm. Copy `config/nero.local.env.example` to the gitignored `config/nero.local.env` for workstation-only settings.
 
 ## Fixed Control Architecture
 
@@ -59,7 +78,7 @@ Goal: a new operator can start from power-on and run the dual-arm dual-hand elbo
 
 ### 2. Enable Each Arm In Web Control
 
-The host's built-in Wi-Fi can connect to only one arm hotspot at a time, so do Arm A and Arm B one by one. The Web address is always `http://192.168.31.1/`, user `admin`, password `123456`.
+The host's built-in Wi-Fi can connect to only one arm hotspot at a time, so do Arm A and Arm B one by one. The default Web address is `http://192.168.31.1/`. Obtain credentials from the lab credential store and keep them only in `config/nero.local.env`; never commit them.
 
 1. Connect Wi-Fi `agx-7ax-armA`, then open `http://192.168.31.1/`.
 2. Confirm the home page shows no red fault. If there is a fault, record and resolve it first.

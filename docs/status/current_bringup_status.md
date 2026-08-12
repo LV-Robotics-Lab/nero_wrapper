@@ -245,7 +245,8 @@ update on 2026-06-25:
 - Arm A network configuration page is reachable at
   `http://192.168.31.1/#/settings/sys`.
 - Earlier Arm A hotspot name visible in the screenshot: `agx-7ax-xin`.
-- Arm A hotspot password visible in the screenshot: `12345678`.
+- Arm A hotspot password was visible in the original screenshot; the value is
+  intentionally omitted from tracked text and must be read from the lab credential store.
 - Arm A hotspot channel visible in the screenshot: `9`.
 - Current Arm A hotspot: `agx-7ax-armA`.
 - Current Arm B hotspot: `agx-7ax-armB`.

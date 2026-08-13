@@ -1,6 +1,7 @@
 """Public API for the NERO hardware wrapper."""
 
 from .config import ArmEndpoint, CanEndpoint, HandEndpoint, NeroConfig
+from .model import NERO_JOINT_LIMITS_RAD, NERO_JOINT_NAMES, validate_joint_positions
 from .payload_protocol import (
     PAYLOAD_CONFIG_CAN_ID,
     SET_INSTRUCTION_ACK_CAN_ID,
@@ -21,6 +22,8 @@ __all__ = [
     "NeroArm",
     "NeroConfig",
     "NeroSdkUnavailable",
+    "NERO_JOINT_LIMITS_RAD",
+    "NERO_JOINT_NAMES",
     "PAYLOAD_CONFIG_CAN_ID",
     "SafetyGateError",
     "SET_INSTRUCTION_ACK_CAN_ID",
@@ -28,5 +31,6 @@ __all__ = [
     "pack_standard_can_frame",
     "payload_config_data",
     "unpack_standard_can_frame",
+    "validate_joint_positions",
     "validate_joint_delta",
 ]

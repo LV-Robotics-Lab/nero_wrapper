@@ -14,5 +14,7 @@ Migrated in this step:
 - Exact NERO V1.2.1 payload level bytes for CAN command `0x477`.
 - Linux classic-CAN frame packing and strict unpacking.
 - Payload-setting ACK recognition on `0x476` instruction `0x77`.
+- Ordered NERO joint names and seven hardware joint-limit intervals, exposed
+  independently so retargeting code does not duplicate robot-owned constants.
 
 The module is a pure codec and opens no CAN interface. The ROS2 payload configuration node and gravity compensation path remain outside the package until their driver lifecycle, robot model assets and real-hardware safety gates are migrated independently.

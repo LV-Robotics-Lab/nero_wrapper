@@ -271,16 +271,22 @@ if has_cmd ip; then
 fi
 
 workspace="${NERO_ROS_WS:-${HOME}/agx_arm_ws}"
-if [ -d "$workspace/src/agx_arm_ros" ]; then
+agx_source="${NERO_AGX_ARM_ROS_ROOT:-$repo_root/submodules/agx_arm_ros}"
+pyagx_source="${NERO_PYAGXARM_ROOT:-$repo_root/submodules/pyAgxArm}"
+if [ -d "$agx_source/src/agx_arm_ctrl" ]; then
+  ok "agx_arm_ros found at $agx_source"
+elif [ -d "$workspace/src/agx_arm_ros" ]; then
   ok "agx_arm_ros found at $workspace/src/agx_arm_ros"
 else
-  warn "agx_arm_ros not found at $workspace/src/agx_arm_ros"
+  warn "agx_arm_ros submodule is not initialized at $agx_source"
 fi
 
-if [ -d "$workspace/src/pyAgxArm" ]; then
+if [ -f "$pyagx_source/setup.py" ] || [ -f "$pyagx_source/pyproject.toml" ]; then
+  ok "pyAgxArm found at $pyagx_source"
+elif [ -d "$workspace/src/pyAgxArm" ]; then
   ok "pyAgxArm found at $workspace/src/pyAgxArm"
 else
-  warn "pyAgxArm not found at $workspace/src/pyAgxArm"
+  warn "pyAgxArm submodule is not initialized at $pyagx_source"
 fi
 
 printf '\nSummary: %s failure(s), %s warning(s)\n' "$fail_count" "$warn_count"

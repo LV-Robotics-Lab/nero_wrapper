@@ -37,6 +37,8 @@ fi
 vendor_script=""
 
 for candidate in \
+  "$repo_root/submodules/agx_arm_ros/scripts/can_activate.sh" \
+  "$repo_root/submodules/pyAgxArm/scripts/ubuntu/can_activate.sh" \
   "$workspace/src/agx_arm_ros/scripts/can_activate.sh" \
   "$workspace/src/pyAgxArm/scripts/ubuntu/can_activate.sh" \
   "./agx_arm_ros/scripts/can_activate.sh" \

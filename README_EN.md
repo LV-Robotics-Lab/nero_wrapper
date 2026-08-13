@@ -3,7 +3,9 @@
 The base package remains configuration-first and does not import ROS or open
 hardware automatically. Optional field adapters live under
 `nero_wrapper.ros2`; they run only through their explicit console entry points.
-The optional cuRobo source is pinned as `submodules/curobo`; initialize it only
+The NERO ROS driver and SDK are pinned as `submodules/agx_arm_ros` and
+`submodules/pyAgxArm`. The optional cuRobo source is pinned as
+`submodules/curobo`; initialize it only
 on CUDA hosts that need the cuRobo backend.
 
 A safe Python wrapper and field-operations repository for two AgileX NERO 7-DOF arms with two LinkerHand L6 hands. It adds typed ROS-independent configuration, read-only state access, host/CAN diagnostics, and reusable safety gates. Field-accepted ROS2 and motion entry points remain under `scripts/` so the refactor does not silently change their real-robot behavior.
@@ -34,6 +36,10 @@ Full workflow: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 ├── examples/               # Package compatibility entry points
 ├── rviz/                   # RViz configuration
 ├── scripts/                # Accepted field scripts and historical development entry points
+├── submodules/
+│   ├── agx_arm_ros/        # Pinned NERO ROS2 driver and URDF
+│   ├── pyAgxArm/           # Pinned NERO CAN SDK
+│   └── curobo/             # Optional pinned CUDA IK upstream
 ├── docs/
 │   ├── status/             # Current status, logs, checklist, framework
 │   ├── phases/             # Archived phase plans, designs, procedures
@@ -188,13 +194,22 @@ If the site, cables, posture, or operator changed, or the current state is uncer
 ## Recreating Upstream Evidence
 
 ```bash
+git submodule update --init --recursive \
+  submodules/agx_arm_ros \
+  submodules/pyAgxArm \
+  submodules/curobo
+```
+
+The runtime pins are `agx_arm_ros` at
+`c73d33f2ab377447261423f1b881bd89c6663627`, `pyAgxArm` at
+`a226840db0c3d5c5dc7f3ec78d6cef1a6800f9e6`, and the nested `agx_arm_urdf` at
+`f6642ce0d7872c686f29c99e9e10cd23d1d49313`. The ignored `upstream/` tree is
+now only for historical evidence or non-runtime references.
+
+The Piper model cross-check remains an optional reference:
+
+```bash
 mkdir -p upstream
-
-git clone https://github.com/agilexrobotics/agx_arm_ros.git upstream/agx_arm_ros
-git -C upstream/agx_arm_ros checkout c73d33f2ab377447261423f1b881bd89c6663627
-
-git clone https://github.com/agilexrobotics/pyAgxArm.git upstream/pyAgxArm
-git -C upstream/pyAgxArm checkout a226840db0c3d5c5dc7f3ec78d6cef1a6800f9e6
 
 git clone https://github.com/agilexrobotics/piper_ros.git upstream/piper_ros
 git -C upstream/piper_ros checkout 2dc30fca68cbf4e04d1d0bc15c123d026380ece7

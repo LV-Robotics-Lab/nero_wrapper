@@ -10,7 +10,7 @@ if [ -f "$repo_root/config/nero.env" ]; then
 fi
 
 venv_path="$repo_root/${NERO_HOST_SDK_VENV:-.venv/nero-sdk}"
-sdk_path="$repo_root/upstream/pyAgxArm"
+sdk_path="${NERO_PYAGXARM_ROOT:-$repo_root/submodules/pyAgxArm}"
 python_bin="/usr/bin/python3"
 
 if [ ! -x "$python_bin" ]; then
@@ -18,8 +18,9 @@ if [ ! -x "$python_bin" ]; then
   exit 1
 fi
 
-if [ ! -d "$sdk_path" ]; then
-  echo "Missing SDK clone: $sdk_path" >&2
+if [ ! -f "$sdk_path/setup.py" ] && [ ! -f "$sdk_path/pyproject.toml" ]; then
+  echo "Missing pinned pyAgxArm submodule: $sdk_path" >&2
+  echo "Run: git submodule update --init submodules/pyAgxArm" >&2
   exit 1
 fi
 

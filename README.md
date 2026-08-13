@@ -29,7 +29,10 @@ English entry: [README_EN.md](README_EN.md)
 ├── examples/               # package 兼容入口
 ├── rviz/                   # RViz 配置
 ├── scripts/                # 已验收现场脚本和历史开发入口
-├── submodules/curobo/      # 可选 CUDA IK 上游，固定版本 submodule
+├── submodules/
+│   ├── agx_arm_ros/        # NERO ROS2 驱动与 URDF，固定版本 submodule
+│   ├── pyAgxArm/           # NERO CAN SDK，固定版本 submodule
+│   └── curobo/             # 可选 CUDA IK 上游，固定版本 submodule
 ├── docs/
 │   ├── status/             # 当前状态、日志、checklist、工程框架
 │   ├── phases/             # 历史阶段计划、设计和操作流程
@@ -188,13 +191,22 @@ NERO_CONTAINER_NAME=nero-return-initial \
 ## 上游依赖复现
 
 ```bash
+git submodule update --init --recursive \
+  submodules/agx_arm_ros \
+  submodules/pyAgxArm \
+  submodules/curobo
+```
+
+正式 NERO 运行依赖已经固定在 wrapper 内：`agx_arm_ros` 为
+`c73d33f2ab377447261423f1b881bd89c6663627`，`pyAgxArm` 为
+`a226840db0c3d5c5dc7f3ec78d6cef1a6800f9e6`，嵌套的 `agx_arm_urdf` 为
+`f6642ce0d7872c686f29c99e9e10cd23d1d49313`。`upstream/` 只保留历史证据或
+非运行时参考，不再是 NERO 驱动与 SDK 的默认来源。
+
+Piper 模型交叉核对仍是可选参考：
+
+```bash
 mkdir -p upstream
-
-git clone https://github.com/agilexrobotics/agx_arm_ros.git upstream/agx_arm_ros
-git -C upstream/agx_arm_ros checkout c73d33f2ab377447261423f1b881bd89c6663627
-
-git clone https://github.com/agilexrobotics/pyAgxArm.git upstream/pyAgxArm
-git -C upstream/pyAgxArm checkout a226840db0c3d5c5dc7f3ec78d6cef1a6800f9e6
 
 git clone https://github.com/agilexrobotics/piper_ros.git upstream/piper_ros
 git -C upstream/piper_ros checkout 2dc30fca68cbf4e04d1d0bc15c123d026380ece7

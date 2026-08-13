@@ -15,6 +15,7 @@ English entry: [README_EN.md](README_EN.md)
 - [部署日志](docs/status/deployment_log.md): 每一步真实执行、证据、风险和后续动作。
 - [Bring-Up Checklist](docs/status/bringup_checklist.md): 现场复验清单。
 - [Setup Framework](docs/status/setup_framework.md): 工程分层、硬件事实、默认配置。
+- [DataMaster 拆分迁移](docs/results/datamaster_split_migration_2026-08-13.md): 已进入 wrapper 的 NERO payload 协议边界。
 - [机器人部署与调试行动路线](docs/phases/机器人部署与调试行动路线.md): 历史阶段路线和详细记录。
 
 ## 目录结构

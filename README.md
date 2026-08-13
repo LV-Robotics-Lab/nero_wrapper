@@ -22,7 +22,7 @@ English entry: [README_EN.md](README_EN.md)
 
 ```text
 .
-├── src/nero_wrapper/       # 可安装、无 ROS 依赖的只读 wrapper
+├── src/nero_wrapper/       # 可安装 wrapper；ros2/ 为显式调用的现场适配层
 ├── tests/                  # 配置、SDK 生命周期、诊断和安全门测试
 ├── config/                 # 非敏感默认值和本地配置模板
 ├── docker/                 # ROS2 Humble 容器
@@ -52,6 +52,10 @@ nero-read-state --arm arm_a
 ```
 
 `nero-read-state` 默认只打印配置，不连接硬件。确认 SocketCAN 已激活并安装厂商 `pyAgxArm` SDK 后，显式加 `--connect` 才读取反馈；它仍不会使能或移动机械臂。机器专属设置从 `config/nero.local.env.example` 复制到被 git 忽略的 `config/nero.local.env`。
+
+`nero_wrapper.ros2` 是可选现场层。普通 `import nero_wrapper` 不会导入 ROS、打开
+CAN 或启动驱动；其中 payload 配置仅在 ROS service 被显式调用后写入，并会明确
+区分 ACK 已验证和固件无回读的 `UNVERIFIED` 结果。
 
 ## 固定控制架构
 

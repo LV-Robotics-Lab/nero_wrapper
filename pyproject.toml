@@ -38,6 +38,8 @@ placo-ik = [
 nero-config = "nero_wrapper.cli:config_main"
 nero-doctor = "nero_wrapper.cli:doctor_main"
 nero-read-state = "nero_wrapper.cli:read_state_main"
+nero-payload-config-node = "nero_wrapper.ros2.payload_config_node:main"
+nero-safe-agx-driver = "nero_wrapper.ros2.safe_agx_arm_ctrl_single:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

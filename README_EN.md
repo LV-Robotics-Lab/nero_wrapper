@@ -1,5 +1,9 @@
 # nero_wrapper
 
+The base package remains configuration-first and does not import ROS or open
+hardware automatically. Optional field adapters live under
+`nero_wrapper.ros2`; they run only through their explicit console entry points.
+
 A safe Python wrapper and field-operations repository for two AgileX NERO 7-DOF arms with two LinkerHand L6 hands. It adds typed ROS-independent configuration, read-only state access, host/CAN diagnostics, and reusable safety gates. Field-accepted ROS2 and motion entry points remain under `scripts/` so the refactor does not silently change their real-robot behavior.
 
 The package API intentionally exposes no motion method. Real motion must continue through accepted scripts with dry-run, emergency-stop, clearance, exclusive-control, and visible-feedback gates.

@@ -18,5 +18,7 @@ Migrated in this step:
   independently so retargeting code does not duplicate robot-owned constants.
 - Explicit-path dual-NERO URDF composition, TCP attachment and collision-pair
   generation. The old host-specific absolute URDF default was removed.
+- Optional payload-only gravity compensation with absolute torque clipping and
+  per-cycle slew limiting. Pinocchio is lazy and the algorithm is fake-backend tested.
 
 The module is a pure codec and opens no CAN interface. The ROS2 payload configuration node and gravity compensation path remain outside the package until their driver lifecycle, robot model assets and real-hardware safety gates are migrated independently.

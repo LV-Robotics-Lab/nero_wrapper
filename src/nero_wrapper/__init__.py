@@ -11,6 +11,7 @@ from .dual_model import (
     load_dual_nero_model,
 )
 from .model import NERO_JOINT_LIMITS_RAD, NERO_JOINT_NAMES, validate_joint_positions
+from .payload_gravity import PayloadGravityCompensator
 from .payload_protocol import (
     PAYLOAD_CONFIG_CAN_ID,
     SET_INSTRUCTION_ACK_CAN_ID,
@@ -38,6 +39,7 @@ __all__ = [
     "NERO_JOINT_LIMITS_RAD",
     "NERO_JOINT_NAMES",
     "PAYLOAD_CONFIG_CAN_ID",
+    "PayloadGravityCompensator",
     "SafetyGateError",
     "SET_INSTRUCTION_ACK_CAN_ID",
     "is_payload_setting_ack",

@@ -28,6 +28,11 @@ payload-gravity = [
   "numpy>=1.24",
   "pin>=2.6",
 ]
+placo-ik = [
+  "numpy>=1.24",
+  "placo",
+  "scipy>=1.7",
+]
 
 [project.scripts]
 nero-config = "nero_wrapper.cli:config_main"

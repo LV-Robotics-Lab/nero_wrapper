@@ -23,5 +23,13 @@ Migrated in this step:
 - The optional cuRobo dual-arm backend, packaged collision spheres and its
   hardware-independent step/collision-escape tests. CUDA/curobo are checked only
   when the backend is explicitly constructed.
+- The optional Placo dual-NERO backend with explicit URDF input and the shared
+  prefixed dual model. Importing the module does not construct a solver.
+
+Remote read-only model smoke on the NERO host loaded the official URDF, built
+both prefixed arms, synchronized fourteen zero joint values and returned finite
+4x4 TCP transforms for both arms. Placo printed its pre-filter neutral-model
+adjacent-link warning for link5/link6 on each arm; this smoke is therefore model
+loading evidence, not a collision-free or motion acceptance claim.
 
 The module is a pure codec and opens no CAN interface. The ROS2 payload configuration node and gravity compensation path remain outside the package until their driver lifecycle, robot model assets and real-hardware safety gates are migrated independently.

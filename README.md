@@ -29,6 +29,7 @@ English entry: [README_EN.md](README_EN.md)
 ├── examples/               # package 兼容入口
 ├── rviz/                   # RViz 配置
 ├── scripts/                # 已验收现场脚本和历史开发入口
+├── submodules/curobo/      # 可选 CUDA IK 上游，固定版本 submodule
 ├── docs/
 │   ├── status/             # 当前状态、日志、checklist、工程框架
 │   ├── phases/             # 历史阶段计划、设计和操作流程

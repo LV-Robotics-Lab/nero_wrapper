@@ -27,7 +27,7 @@ and index-micro gates.
   physical guesswork.
 - The hand is empty and clear of tools, cables, and fingers.
 
-Expected right-hand facts from `upstream/linkerhand_sdk`:
+Expected right-hand facts from `upstream/linkerhand_wrapper`:
 
 - Side: `right`
 - CAN ID: `0x27`

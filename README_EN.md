@@ -215,8 +215,9 @@ git clone https://github.com/agilexrobotics/piper_ros.git upstream/piper_ros
 git -C upstream/piper_ros checkout 2dc30fca68cbf4e04d1d0bc15c123d026380ece7
 ```
 
-LinkerHand SDK is user-provided or requires private repository access:
+The LinkerHand wrapper is owned by the Piper route. NERO keeps it only as an
+optional cross-group reference, not as a default runtime dependency:
 
 ```bash
-git clone https://github.com/LV-Robotics-Lab/linkerhand_sdk upstream/linkerhand_sdk
+git clone https://github.com/LV-Robotics-Lab/linkerhand_wrapper upstream/linkerhand_wrapper
 ```

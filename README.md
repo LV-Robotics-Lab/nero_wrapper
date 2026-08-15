@@ -212,8 +212,9 @@ git clone https://github.com/agilexrobotics/piper_ros.git upstream/piper_ros
 git -C upstream/piper_ros checkout 2dc30fca68cbf4e04d1d0bc15c123d026380ece7
 ```
 
-LinkerHand SDK 为用户提供或私有访问来源：
+LinkerHand wrapper 主归属 Piper 路线；在 NERO 中只作为可选的跨组参考，
+不是 NERO 默认运行依赖：
 
 ```bash
-git clone https://github.com/LV-Robotics-Lab/linkerhand_sdk upstream/linkerhand_sdk
+git clone https://github.com/LV-Robotics-Lab/linkerhand_wrapper upstream/linkerhand_wrapper
 ```

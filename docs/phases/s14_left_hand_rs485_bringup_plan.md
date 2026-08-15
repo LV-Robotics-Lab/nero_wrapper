@@ -45,7 +45,7 @@ From the LinkerHand SDK and L6 documents:
   maximum about `1.4 A`.
 - L6 communication options: CAN or RS485/Modbus.
 - RS485 support exists in
-  `upstream/linkerhand_sdk/LinkerHand/core/rs485/linker_hand_l6_rs485.py`.
+  `upstream/linkerhand_wrapper/LinkerHand/core/rs485/linker_hand_l6_rs485.py`.
 - RS485 serial parameters in the SDK:
   - `115200` baud;
   - `8N1`;

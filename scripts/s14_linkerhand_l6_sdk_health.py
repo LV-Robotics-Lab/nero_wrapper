@@ -16,7 +16,10 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_sdk"
+SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_wrapper"
+LEGACY_SDK_ROOT = REPO_ROOT / "upstream" / ("linkerhand_" + "sdk")
+if not SDK_ROOT.exists() and LEGACY_SDK_ROOT.exists():
+    SDK_ROOT = LEGACY_SDK_ROOT
 SDK_API_ROOT = SDK_ROOT / "LinkerHand"
 
 if str(SDK_API_ROOT) not in sys.path:
@@ -26,7 +29,7 @@ try:
     from linker_hand_api import LinkerHandApi  # type: ignore
 except ImportError as exc:
     raise SystemExit(
-        "Failed to import linker_hand_api from upstream/linkerhand_sdk. "
+        "Failed to import linker_hand_api from upstream/linkerhand_wrapper. "
         "Run this with .venv/nero-sdk/bin/python from the project root."
     ) from exc
 

@@ -230,7 +230,7 @@ Next read-only probe:
 New field information on 2026-06-29:
 
 - The two installed hands were previously debugged with
-  `https://github.com/LV-Robotics-Lab/linkerhand_sdk`.
+  `https://github.com/LV-Robotics-Lab/linkerhand_wrapper`.
 - This SDK should be treated as the preferred hand-side software reference once
   its source is available locally and reviewed.
 
@@ -238,7 +238,7 @@ Current access status:
 
 - Initial direct clone was blocked because GitHub requested credentials.
 - The operator downloaded the source tree manually.
-- The local source is now stored at `upstream/linkerhand_sdk/`.
+- The local source is now stored at `upstream/linkerhand_wrapper/`.
 - The local copy is a downloaded tree, not a git clone, so no commit hash is
   available locally.
 
@@ -306,7 +306,7 @@ Correction on 2026-06-30:
 - Operator clarified that the installed hands are not connected directly to the
   computer through USB-CAN/PCAN adapters. They are connected to the NERO arm
   through the J6 end-effector power/communication cable.
-- The direct LinkerHand CAN path in `upstream/linkerhand_sdk/` describes a
+- The direct LinkerHand CAN path in `upstream/linkerhand_wrapper/` describes a
   previous bench/debug setup, not the current robot installation.
 - Do not run `scripts/s14_linkerhand_identify_can.sh` on `can_arm_a` or
   `can_arm_b` for the current J6-integrated setup.
@@ -497,7 +497,7 @@ Revised next gate after this observation:
 2. Passive `timeout 5s candump -tz can1` produced no idle frames while the bench
    supply stayed stable at about `24 V` and `0.135 A`; this is now treated as an
    idle-device fact, not a communication failure.
-3. Use the local tuned repository `upstream/linkerhand_sdk` as the primary hand
+3. Use the local tuned repository `upstream/linkerhand_wrapper` as the primary hand
    control source, but only through project safety wrappers for the first gates.
 4. Run SDK-backed identity/health with:
 

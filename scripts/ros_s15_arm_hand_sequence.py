@@ -31,7 +31,10 @@ except Exception:  # pragma: no cover - only used inside the ROS container
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_sdk"
+SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_wrapper"
+LEGACY_SDK_ROOT = REPO_ROOT / "upstream" / ("linkerhand_" + "sdk")
+if not SDK_ROOT.exists() and LEGACY_SDK_ROOT.exists():
+    SDK_ROOT = LEGACY_SDK_ROOT
 SDK_API_ROOT = SDK_ROOT / "LinkerHand"
 for sdk_path in (SDK_ROOT, SDK_API_ROOT):
     if str(sdk_path) not in sys.path:
@@ -42,7 +45,7 @@ try:
     from linker_hand_l6 import PRESETS  # type: ignore
 except ImportError as exc:  # pragma: no cover - validated in the real container
     raise SystemExit(
-        "Failed to import local linkerhand_sdk modules. "
+        "Failed to import local linkerhand_wrapper modules. "
         "Run this script inside the project Humble container."
     ) from exc
 

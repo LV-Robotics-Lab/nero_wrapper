@@ -10,7 +10,7 @@ Use a hybrid control architecture for the next stage:
 
 - NERO arms: ROS2 through the existing `agx_arm_ros` driver and the accepted
   `/arm_a` and `/arm_b` namespaces.
-- LinkerHand L6 hands: the validated local `upstream/linkerhand_sdk` path through
+- LinkerHand L6 hands: the validated local `upstream/linkerhand_wrapper` path through
   project safety wrappers on `can1` and `can2`.
 
 Do not switch the arms back to SDK-only as the primary path for dual-arm

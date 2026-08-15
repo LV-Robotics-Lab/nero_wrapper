@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """S14 LinkerHand L6 SDK-backed gated first motion.
 
-The script reuses the local linkerhand_sdk API and L6 preset table, but avoids
+The script reuses the local linkerhand_wrapper API and L6 preset table, but avoids
 the SDK demos and wrapper context managers because they can issue larger or
 implicit motion commands.
 """
@@ -17,7 +17,10 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_sdk"
+SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_wrapper"
+LEGACY_SDK_ROOT = REPO_ROOT / "upstream" / ("linkerhand_" + "sdk")
+if not SDK_ROOT.exists() and LEGACY_SDK_ROOT.exists():
+    SDK_ROOT = LEGACY_SDK_ROOT
 SDK_API_ROOT = SDK_ROOT / "LinkerHand"
 
 for path in (SDK_ROOT, SDK_API_ROOT):
@@ -29,7 +32,7 @@ try:
     from linker_hand_l6 import JOINT_NAMES, PRESETS  # type: ignore
 except ImportError as exc:
     raise SystemExit(
-        "Failed to import local linkerhand_sdk modules. "
+        "Failed to import local linkerhand_wrapper modules. "
         "Run this with .venv/nero-sdk/bin/python from the project root."
     ) from exc
 

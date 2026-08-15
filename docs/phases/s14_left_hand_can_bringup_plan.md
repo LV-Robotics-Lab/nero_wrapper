@@ -33,7 +33,7 @@ or `/dev/ttyACM*` serial adapter appears later.
 
 ## Interface Facts
 
-From `upstream/linkerhand_sdk`:
+From `upstream/linkerhand_wrapper`:
 
 - LinkerHand L6 native CAN bitrate: `1000000`.
 - Left hand CAN ID: `0x28`.
@@ -149,7 +149,7 @@ Safety gate:
 
 SDK-first policy after S14.6C:
 
-- Prefer the local tuned repository `upstream/linkerhand_sdk` over manual CAN
+- Prefer the local tuned repository `upstream/linkerhand_wrapper` over manual CAN
   guessing.
 - Do not run the SDK demos directly for first motion. `test_hand.py`,
   `gestures.py`, `diagnose.py`, `dual_gui.py`, and the high-level wrapper

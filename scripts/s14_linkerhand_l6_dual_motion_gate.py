@@ -2,7 +2,7 @@
 """S14 LinkerHand L6 dual-hand gated motion.
 
 This script is the first bimanual gate after each hand passed the single-hand
-SDK health/open/index checks. It reuses the local linkerhand_sdk API and preset
+SDK health/open/index checks. It reuses the local linkerhand_wrapper API and preset
 table, defaults to dry-run, and avoids SDK demos/GUI wrappers.
 """
 
@@ -18,7 +18,10 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_sdk"
+SDK_ROOT = REPO_ROOT / "upstream" / "linkerhand_wrapper"
+LEGACY_SDK_ROOT = REPO_ROOT / "upstream" / ("linkerhand_" + "sdk")
+if not SDK_ROOT.exists() and LEGACY_SDK_ROOT.exists():
+    SDK_ROOT = LEGACY_SDK_ROOT
 SDK_API_ROOT = SDK_ROOT / "LinkerHand"
 
 for path in (SDK_ROOT, SDK_API_ROOT):
@@ -30,7 +33,7 @@ try:
     from linker_hand_l6 import JOINT_NAMES, PRESETS  # type: ignore
 except ImportError as exc:
     raise SystemExit(
-        "Failed to import local linkerhand_sdk modules. "
+        "Failed to import local linkerhand_wrapper modules. "
         "Run this with .venv/nero-sdk/bin/python from the project root."
     ) from exc
 

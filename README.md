@@ -4,6 +4,18 @@
 
 当前 package API 故意不提供运动方法。真实动作仍必须使用已验收脚本，并遵守 dry-run、急停、空间清空、控制源互斥和反馈可见性门禁。
 
+| 字段 | 当前状态 |
+| --- | --- |
+| Owning group | NERO 真机组 |
+| Repository role | `device-wrapper` / NERO 主入口 |
+| Lifecycle | `active` |
+| 软件集成状态 | 类型化配置、只读诊断、离线测试与 ROS 2 路线均有仓内合同；每次部署仍须在目标主机复跑 |
+| 现场硬件验收状态 | 历史证据覆盖双臂低速、控制隔离、低风险协同及有限手部 bring-up；接触抓取、handoff、近距离操作和新全手势仍明确阻塞，本轮治理未重新验收 |
+| 最后治理核验 | 2026-08-16 |
+
+组织级属性保持保守口径；只有绑定具体主机、配置、日期和证据的窄范围动作才可称为
+现场通过，不能外推为整套 NERO 已完成 hardware validation。
+
 English entry: [README_EN.md](README_EN.md)  
 完整流程计划: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 

@@ -12,6 +12,19 @@ A safe Python wrapper and field-operations repository for two AgileX NERO 7-DOF 
 
 The package API intentionally exposes no motion method. Real motion must continue through accepted scripts with dry-run, emergency-stop, clearance, exclusive-control, and visible-feedback gates.
 
+| Field | Current status |
+| --- | --- |
+| Owning group | NERO real-robot group |
+| Repository role | `device-wrapper` / NERO primary entrypoint |
+| Lifecycle | `active` |
+| Software integration status | Typed configuration, read-only diagnostics, offline tests, and the ROS 2 route have repository contracts; every deployment must rerun them on the target host |
+| Field hardware acceptance status | Historical evidence covers low-speed dual-arm operation, control isolation, low-risk coordination, and limited hand bring-up; contact grasping, handoff, close-proximity operation, and new full-hand gestures remain explicitly blocked, and this governance pass did not revalidate hardware |
+| Last governance check | 2026-08-16 |
+
+Organization-level properties stay conservative. Only a narrow action tied to a
+specific host, configuration, date, and evidence can be called field-accepted;
+it must not be generalized into hardware validation for the whole NERO system.
+
 Chinese entry: [README.md](README.md)  
 Full workflow: [PLAN.md](PLAN.md) / [PLAN_EN.md](PLAN_EN.md)
 

@@ -167,3 +167,6 @@ def main(args: list[str] | None = None) -> None:
         if rclpy.ok():
             rclpy.shutdown()
 
+
+if __name__ == "__main__":
+    main()

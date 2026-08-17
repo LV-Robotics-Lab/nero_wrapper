@@ -27,16 +27,36 @@ class BaseTransform:
             raise ValueError("BaseTransform values must be finite")
 
 
-# Audited opposed-base layout for the lab's dual-NERO bench. Integrations may
-# pass another explicit mapping; this value must not be inferred for a new rig.
+# 2026-08-13 photographed hanging-gantry layout: lab +X forward, +Y left and
+# +Z up, with arm_a on the right and arm_b on the left. The base cylinders are
+# horizontal and their local -Z mounting bottoms point inward. The 480 mm
+# spacing is an installation estimate, not a generic default.
 LAB_DUAL_BENCH_BASE_TRANSFORMS = {
-    "arm_a": BaseTransform((0.0, 0.0, 0.0), (math.pi, math.pi / 2.0, 0.0)),
-    "arm_b": BaseTransform((0.260, 0.0, 0.0), (0.0, math.pi / 2.0, 0.0)),
+    "arm_a": BaseTransform(
+        (0.0, -0.240, 0.0), (math.pi / 2.0, math.pi / 2.0, 0.0)
+    ),
+    "arm_b": BaseTransform(
+        (0.0, 0.240, 0.0), (-math.pi / 2.0, math.pi / 2.0, 0.0)
+    ),
 }
 
-# NERO feedback and move_js use the official URDF joint coordinates directly.
+# Hardware reports J2=J3=0 in the photographed hanging posture. The official
+# URDF represents that posture with J2=-90 degrees and mirrored J3 values.
+# Commands are converted back by the IK wrapper before publication.
 HARDWARE_TO_MODEL_JOINT_OFFSETS = {
-    arm: (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0) for arm in ARM_NAMES
+    "arm_a": (0.0, -math.pi / 2.0, -math.pi / 2.0, 0.0, 0.0, 0.0, 0.0),
+    "arm_b": (0.0, -math.pi / 2.0, math.pi / 2.0, 0.0, 0.0, 0.0, 0.0),
+}
+
+# The 2026-08-14 Execute trace supplied the missing dynamic calibration: a
+# positive hardware J2 moved both installed distal chains toward the centre,
+# while the official URDF at the accepted zero-pose offsets moves them away.
+# A constant offset cannot express that axis reversal.  Keep the model's
+# positive J2 direction as the collision/IK "outward" coordinate and reflect
+# hardware J2 explicitly in both feedback and command conversions.
+HARDWARE_TO_MODEL_JOINT_SIGNS = {
+    "arm_a": (1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+    "arm_b": (1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
 }
 
 
@@ -80,12 +100,14 @@ def build_dual_nero_urdf(
     *,
     base_transforms: Mapping[str, BaseTransform],
     joint_offsets: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_OFFSETS,
+    joint_signs: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_SIGNS,
     tcp_offsets: Mapping[str, BaseTransform] | None = None,
 ) -> str:
     """Build a dual-arm model in ``lab_world`` from one official NERO URDF."""
 
     _arm_mapping(base_transforms, name="base_transforms")
     _arm_mapping(joint_offsets, name="joint_offsets")
+    _arm_mapping(joint_signs, name="joint_signs")
     if tcp_offsets is not None:
         _arm_mapping(tcp_offsets, name="tcp_offsets")
     source_path = Path(source_urdf_path).expanduser().resolve()
@@ -118,6 +140,9 @@ def build_dual_nero_urdf(
         offsets = tuple(float(value) for value in joint_offsets[arm])
         if len(offsets) != 7 or not all(math.isfinite(value) for value in offsets):
             raise ValueError(f"{arm} joint offset must contain seven finite values")
+        signs = tuple(float(value) for value in joint_signs[arm])
+        if len(signs) != 7 or any(value not in (-1.0, 1.0) for value in signs):
+            raise ValueError(f"{arm} joint signs must contain seven +1/-1 values")
         prefix = f"{arm}_"
         mount = ET.SubElement(
             result,
@@ -138,10 +163,19 @@ def build_dual_nero_urdf(
             prefixed = _prefix_element(joint, prefix, mesh_root)
             limit = prefixed.find("limit")
             if limit is not None:
-                for bound in ("lower", "upper"):
-                    raw = limit.get(bound)
-                    if raw is not None:
-                        limit.set(bound, f"{float(raw) + offsets[index]:.10g}")
+                raw_lower = limit.get("lower")
+                raw_upper = limit.get("upper")
+                if (raw_lower is None) != (raw_upper is None):
+                    raise ValueError(
+                        f"official NERO joint{index + 1} has an incomplete limit"
+                    )
+                if raw_lower is not None and raw_upper is not None:
+                    transformed = (
+                        offsets[index] + signs[index] * float(raw_lower),
+                        offsets[index] + signs[index] * float(raw_upper),
+                    )
+                    limit.set("lower", f"{min(transformed):.10g}")
+                    limit.set("upper", f"{max(transformed):.10g}")
             result.append(prefixed)
 
         tcp_offset = resolved_tcp_offsets[arm]
@@ -187,6 +221,7 @@ def load_dual_nero_model(
     *,
     base_transforms: Mapping[str, BaseTransform],
     joint_offsets: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_OFFSETS,
+    joint_signs: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_SIGNS,
     tcp_offsets: Mapping[str, BaseTransform] | None = None,
 ) -> Any:
     """Load the generated model through optional Placo after explicit request."""
@@ -200,6 +235,7 @@ def load_dual_nero_model(
         source_path,
         base_transforms=base_transforms,
         joint_offsets=joint_offsets,
+        joint_signs=joint_signs,
         tcp_offsets=tcp_offsets,
     )
     model = placo.RobotWrapper(str(source_path), 0, content)

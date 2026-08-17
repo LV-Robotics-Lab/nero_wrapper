@@ -49,6 +49,7 @@ CAPTURED_JOINTS = {
 }
 
 ZERO_OFFSETS = {"arm_a": (0.0,) * 7, "arm_b": (0.0,) * 7}
+IDENTITY_SIGNS = {"arm_a": (1.0,) * 7, "arm_b": (1.0,) * 7}
 
 
 def _joint_vector(value: str) -> np.ndarray:
@@ -131,8 +132,20 @@ def _arguments() -> argparse.Namespace:
     return args
 
 
-def _child_spec(mujoco, build_dual_nero_urdf, urdf_path, offsets, rgba, group):
-    xml = build_dual_nero_urdf(urdf_path, joint_offsets=offsets)
+def _child_spec(
+    mujoco,
+    build_dual_nero_urdf,
+    urdf_path,
+    offsets,
+    signs,
+    rgba,
+    group,
+):
+    xml = build_dual_nero_urdf(
+        urdf_path,
+        joint_offsets=offsets,
+        joint_signs=signs,
+    )
     child = mujoco.MjSpec.from_string(xml)
     for geom in child.geoms:
         geom.rgba = rgba
@@ -153,6 +166,7 @@ def _child_spec(mujoco, build_dual_nero_urdf, urdf_path, offsets, rgba, group):
 def _build_comparison_model(mujoco, urdf_path: Path):
     from nero_wrapper.dual_model import (
         HARDWARE_TO_MODEL_JOINT_OFFSETS,
+        HARDWARE_TO_MODEL_JOINT_SIGNS,
         build_dual_nero_urdf,
     )
 
@@ -185,6 +199,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         build_dual_nero_urdf,
         urdf_path,
         ZERO_OFFSETS,
+        IDENTITY_SIGNS,
         [0.10, 0.90, 0.25, 0.92],
         1,
     )
@@ -193,6 +208,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         build_dual_nero_urdf,
         urdf_path,
         HARDWARE_TO_MODEL_JOINT_OFFSETS,
+        HARDWARE_TO_MODEL_JOINT_SIGNS,
         [1.00, 0.10, 0.12, 0.34],
         2,
     )
@@ -201,6 +217,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         build_dual_nero_urdf,
         urdf_path,
         ZERO_OFFSETS,
+        IDENTITY_SIGNS,
         [0.10, 0.62, 1.00, 0.82],
         3,
     )
@@ -210,18 +227,24 @@ def _build_comparison_model(mujoco, urdf_path: Path):
     master.attach(raw, prefix="raw_", frame=raw_frame)
     master.attach(configured, prefix="configured_", frame=configured_frame)
     master.attach(gravity, prefix="gravity_", frame=gravity_frame)
-    return master.compile(), HARDWARE_TO_MODEL_JOINT_OFFSETS
-
-
-def _set_joint_pose(mujoco, model, data, joints, offsets) -> None:
-    assemblies = (
-        ("raw_", ZERO_OFFSETS),
-        ("configured_", offsets),
-        ("gravity_", ZERO_OFFSETS),
+    return (
+        master.compile(),
+        HARDWARE_TO_MODEL_JOINT_OFFSETS,
+        HARDWARE_TO_MODEL_JOINT_SIGNS,
     )
-    for prefix, applied_offsets in assemblies:
+
+
+def _set_joint_pose(mujoco, model, data, joints, offsets, signs) -> None:
+    assemblies = (
+        ("raw_", ZERO_OFFSETS, IDENTITY_SIGNS),
+        ("configured_", offsets, signs),
+        ("gravity_", ZERO_OFFSETS, IDENTITY_SIGNS),
+    )
+    for prefix, applied_offsets, applied_signs in assemblies:
         for arm in ("arm_a", "arm_b"):
-            values = joints[arm] + np.asarray(applied_offsets[arm], dtype=np.float64)
+            values = np.asarray(applied_offsets[arm], dtype=np.float64) + np.asarray(
+                applied_signs[arm], dtype=np.float64
+            ) * joints[arm]
             for index, value in enumerate(values, 1):
                 joint_name = f"{prefix}{arm}_joint{index}"
                 joint_id = mujoco.mj_name2id(
@@ -459,9 +482,9 @@ def main() -> None:
     import mujoco
 
     joints = {"arm_a": args.arm_a.copy(), "arm_b": args.arm_b.copy()}
-    model, offsets = _build_comparison_model(mujoco, args.urdf)
+    model, offsets, signs = _build_comparison_model(mujoco, args.urdf)
     data = mujoco.MjData(model)
-    _set_joint_pose(mujoco, model, data, joints, offsets)
+    _set_joint_pose(mujoco, model, data, joints, offsets, signs)
     _settle_passive_gravity(
         mujoco,
         model,

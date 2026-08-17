@@ -4,6 +4,7 @@ from .config import ArmEndpoint, CanEndpoint, HandEndpoint, NeroConfig
 from .dual_model import (
     ARM_NAMES,
     HARDWARE_TO_MODEL_JOINT_OFFSETS,
+    HARDWARE_TO_MODEL_JOINT_SIGNS,
     LAB_DUAL_BENCH_BASE_TRANSFORMS,
     BaseTransform,
     build_dual_nero_urdf,
@@ -31,6 +32,7 @@ __all__ = [
     "CanEndpoint",
     "HandEndpoint",
     "HARDWARE_TO_MODEL_JOINT_OFFSETS",
+    "HARDWARE_TO_MODEL_JOINT_SIGNS",
     "LAB_DUAL_BENCH_BASE_TRANSFORMS",
     "MotionGate",
     "NeroArm",

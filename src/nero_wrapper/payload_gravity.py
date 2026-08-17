@@ -7,7 +7,7 @@ import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .dual_model import ARM_NAMES
+from .dual_model import ARM_NAMES, HARDWARE_TO_MODEL_JOINT_SIGNS
 
 
 class PayloadGravityCompensator:
@@ -25,6 +25,7 @@ class PayloadGravityCompensator:
         com_xyz_m: Sequence[float],
         world_from_base_rotations: Mapping[str, Any],
         joint_offsets: Mapping[str, Sequence[float]],
+        joint_signs: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_SIGNS,
         torque_scale: float = 1.0,
         max_abs_torque_nm: float = 6.0,
         max_torque_step_nm: float = 0.25,
@@ -49,6 +50,8 @@ class PayloadGravityCompensator:
             raise ValueError("world_from_base_rotations must contain arm_a and arm_b")
         if set(joint_offsets) != set(ARM_NAMES):
             raise ValueError("joint_offsets must contain arm_a and arm_b")
+        if set(joint_signs) != set(ARM_NAMES):
+            raise ValueError("joint_signs must contain arm_a and arm_b")
         if not math.isfinite(mass_kg) or mass_kg <= 0.0:
             raise ValueError("payload mass_kg must be positive and finite")
         com = np.asarray(com_xyz_m, dtype=np.float64)
@@ -71,6 +74,7 @@ class PayloadGravityCompensator:
         self.max_abs_torque_nm = float(max_abs_torque_nm)
         self.max_torque_step_nm = float(max_torque_step_nm)
         self.offsets: dict[str, Any] = {}
+        self.signs: dict[str, Any] = {}
         self.models: dict[str, Any] = {}
         self.payload_models: dict[str, Any] = {}
         self.data: dict[str, Any] = {}
@@ -92,7 +96,13 @@ class PayloadGravityCompensator:
             offsets = np.asarray(joint_offsets[arm], dtype=np.float64)
             if offsets.shape != (7,) or not np.all(np.isfinite(offsets)):
                 raise ValueError(f"{arm} joint offsets must contain seven finite values")
+            signs = np.asarray(joint_signs[arm], dtype=np.float64)
+            if signs.shape != (7,) or not np.all(np.isin(signs, (-1.0, 1.0))):
+                raise ValueError(
+                    f"{arm} joint signs must contain seven +1/-1 values"
+                )
             self.offsets[arm] = offsets
+            self.signs[arm] = signs
 
             bare_model = pin.buildModelFromUrdf(urdf_path)
             if bare_model.nq != 7 or bare_model.nv != 7:
@@ -130,7 +140,7 @@ class PayloadGravityCompensator:
         hardware = np.asarray(measured_hardware_joints, dtype=np.float64)
         if hardware.shape != (7,) or not np.all(np.isfinite(hardware)):
             raise ValueError(f"{arm} joints must contain seven finite values")
-        q_model = hardware + self.offsets[arm]
+        q_model = self.offsets[arm] + self.signs[arm] * hardware
         with_payload = self._pin.computeGeneralizedGravity(
             self.payload_models[arm], self.payload_data[arm], q_model
         )
@@ -139,6 +149,9 @@ class PayloadGravityCompensator:
         )
         torque = np.asarray(with_payload - bare, dtype=np.float64)
         torque *= self.torque_scale
+        # Virtual work gives tau_hardware = sign * tau_model for the reflected
+        # J2 coordinate used by the installed hanging assembly.
+        torque *= self.signs[arm]
         return np.clip(torque, -self.max_abs_torque_nm, self.max_abs_torque_nm)
 
     def torque(

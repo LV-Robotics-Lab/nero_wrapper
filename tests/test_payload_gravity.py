@@ -3,7 +3,11 @@ import math
 import numpy as np
 import pytest
 
-from nero_wrapper.dual_model import ARM_NAMES, HARDWARE_TO_MODEL_JOINT_OFFSETS
+from nero_wrapper.dual_model import (
+    ARM_NAMES,
+    HARDWARE_TO_MODEL_JOINT_OFFSETS,
+    HARDWARE_TO_MODEL_JOINT_SIGNS,
+)
 from nero_wrapper.payload_gravity import PayloadGravityCompensator
 
 
@@ -75,6 +79,7 @@ def compensator(**overrides):
         "com_xyz_m": [0.0, 0.0, 0.075],
         "world_from_base_rotations": rotations(),
         "joint_offsets": HARDWARE_TO_MODEL_JOINT_OFFSETS,
+        "joint_signs": HARDWARE_TO_MODEL_JOINT_SIGNS,
         "max_abs_torque_nm": 6.0,
         "max_torque_step_nm": 0.25,
         "pin_backend": FakePin,
@@ -86,7 +91,7 @@ def compensator(**overrides):
 def test_payload_delta_is_clipped_without_duplicate_bare_gravity() -> None:
     subject = compensator()
     raw = subject.raw_torque("arm_a", [0.5] * 7)
-    np.testing.assert_allclose(raw, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 6.0])
+    np.testing.assert_allclose(raw, [1.0, -2.0, 3.0, 4.0, 5.0, 6.0, 6.0])
 
 
 def test_torque_slew_prevents_startup_step_and_reset_clears_history() -> None:
@@ -119,6 +124,15 @@ def test_payload_model_receives_mass_and_com() -> None:
         (
             {"world_from_base_rotations": {"arm_a": np.eye(3)}},
             "arm_a and arm_b",
+        ),
+        (
+            {
+                "joint_signs": {
+                    "arm_a": [1.0, 0.0] + [1.0] * 5,
+                    "arm_b": [1.0] * 7,
+                }
+            },
+            r"\+1/-1",
         ),
         (
             {

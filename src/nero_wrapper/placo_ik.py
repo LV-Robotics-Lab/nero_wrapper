@@ -11,6 +11,7 @@ from scipy.spatial.transform import Rotation
 from .dual_model import (
     ARM_NAMES,
     HARDWARE_TO_MODEL_JOINT_OFFSETS,
+    HARDWARE_TO_MODEL_JOINT_SIGNS,
     LAB_DUAL_BENCH_BASE_TRANSFORMS,
     BaseTransform,
     load_dual_nero_model,
@@ -38,6 +39,7 @@ class PlacoDualNeroIk:
         *,
         base_transforms: Mapping[str, BaseTransform] = LAB_DUAL_BENCH_BASE_TRANSFORMS,
         joint_offsets: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_OFFSETS,
+        joint_signs: Mapping[str, Sequence[float]] = HARDWARE_TO_MODEL_JOINT_SIGNS,
         tcp_offsets: Mapping[str, BaseTransform] | None = None,
         control_rate_hz: float = 20.0,
         max_joint_step_rad: float = math.radians(0.5),
@@ -50,12 +52,30 @@ class PlacoDualNeroIk:
             urdf_path,
             base_transforms=base_transforms,
             joint_offsets=joint_offsets,
+            joint_signs=joint_signs,
             tcp_offsets=tcp_offsets,
         )
         self.offsets = {
             arm: np.asarray(joint_offsets[arm], dtype=np.float64)
             for arm in ARM_NAMES
         }
+        self.signs = {
+            arm: np.asarray(joint_signs[arm], dtype=np.float64)
+            for arm in ARM_NAMES
+        }
+        for arm in ARM_NAMES:
+            if self.offsets[arm].shape != (7,) or not np.all(
+                np.isfinite(self.offsets[arm])
+            ):
+                raise ValueError(
+                    f"{arm} joint offset must contain seven finite values"
+                )
+            if self.signs[arm].shape != (7,) or not np.all(
+                np.isin(self.signs[arm], (-1.0, 1.0))
+            ):
+                raise ValueError(
+                    f"{arm} joint signs must contain seven +1/-1 values"
+                )
         self.max_joint_step_rad = float(max_joint_step_rad)
         self.solver = placo.KinematicsSolver(self.model)
         self.solver.dt = 1.0 / float(control_rate_hz)
@@ -110,7 +130,7 @@ class PlacoDualNeroIk:
             if values.shape != (7,) or not np.all(np.isfinite(values)):
                 raise IkSafetyError(f"{arm} joint feedback must contain seven finite values")
             measured[arm] = values.copy()
-            model_values = values + self.offsets[arm]
+            model_values = self.offsets[arm] + self.signs[arm] * values
             self.model.state.q[self.q_indices[arm]] = model_values
             for index, value in enumerate(model_values, 1):
                 self.posture_task.set_joint(f"{arm}_joint{index}", float(value))
@@ -203,7 +223,9 @@ class PlacoDualNeroIk:
         orientation_errors = {}
         for arm in ARM_NAMES:
             model_candidate = self.model.state.q[self.q_indices[arm]].copy()
-            hardware_candidate = model_candidate - self.offsets[arm]
+            hardware_candidate = self.signs[arm] * (
+                model_candidate - self.offsets[arm]
+            )
             if not np.all(np.isfinite(hardware_candidate)):
                 raise IkSafetyError(f"{arm} IK produced non-finite joints")
             step = float(

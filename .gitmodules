@@ -6,4 +6,4 @@
 	url = https://github.com/agilexrobotics/agx_arm_ros.git
 [submodule "submodules/pyAgxArm"]
 	path = submodules/pyAgxArm
-	url = https://github.com/agilexrobotics/pyAgxArm.git
+	url = https://github.com/LV-Robotics-Lab/pyAgxArm.git

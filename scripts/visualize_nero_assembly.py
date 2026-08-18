@@ -136,6 +136,7 @@ def _child_spec(
     mujoco,
     build_dual_nero_urdf,
     urdf_path,
+    base_transforms,
     offsets,
     signs,
     rgba,
@@ -143,6 +144,7 @@ def _child_spec(
 ):
     xml = build_dual_nero_urdf(
         urdf_path,
+        base_transforms=base_transforms,
         joint_offsets=offsets,
         joint_signs=signs,
     )
@@ -167,6 +169,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
     from nero_wrapper.dual_model import (
         HARDWARE_TO_MODEL_JOINT_OFFSETS,
         HARDWARE_TO_MODEL_JOINT_SIGNS,
+        LAB_DUAL_BENCH_BASE_TRANSFORMS,
         build_dual_nero_urdf,
     )
 
@@ -198,6 +201,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         mujoco,
         build_dual_nero_urdf,
         urdf_path,
+        LAB_DUAL_BENCH_BASE_TRANSFORMS,
         ZERO_OFFSETS,
         IDENTITY_SIGNS,
         [0.10, 0.90, 0.25, 0.92],
@@ -207,6 +211,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         mujoco,
         build_dual_nero_urdf,
         urdf_path,
+        LAB_DUAL_BENCH_BASE_TRANSFORMS,
         HARDWARE_TO_MODEL_JOINT_OFFSETS,
         HARDWARE_TO_MODEL_JOINT_SIGNS,
         [1.00, 0.10, 0.12, 0.34],
@@ -216,6 +221,7 @@ def _build_comparison_model(mujoco, urdf_path: Path):
         mujoco,
         build_dual_nero_urdf,
         urdf_path,
+        LAB_DUAL_BENCH_BASE_TRANSFORMS,
         ZERO_OFFSETS,
         IDENTITY_SIGNS,
         [0.10, 0.62, 1.00, 0.82],

@@ -59,6 +59,11 @@ HARDWARE_TO_MODEL_JOINT_SIGNS = {
     "arm_b": (1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
 }
 
+# Hardware-coordinate parity that maps an arm_a pose to the reflected arm_b
+# pose in the photographed installation. This is a kinematic mirror contract,
+# not an additional hardware zero offset.
+HARDWARE_MIRROR_JOINT_PARITY = (-1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0)
+
 
 def _format_vector(values: Iterable[float]) -> str:
     return " ".join(f"{float(value):.10g}" for value in values)

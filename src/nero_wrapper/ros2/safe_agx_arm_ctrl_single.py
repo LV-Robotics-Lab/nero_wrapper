@@ -100,7 +100,7 @@ class SafeAgxArmRosNode(AgxArmRosNode):
         self.declare_parameter("cpv_feedback_source_timeout_s", 0.05)
         self.declare_parameter("cpv_input_trace_timeout_s", 0.10)
         self.declare_parameter("cpv_require_fresh_trace", True)
-        self.declare_parameter("move_j_mode_handover_timeout_s", 0.5)
+        self.declare_parameter("move_j_mode_handover_timeout_s", 1.0)
         self.declare_parameter("joint_pub_rate", 200)
 
     def _load_parameters(self) -> None:
@@ -194,6 +194,8 @@ class SafeAgxArmRosNode(AgxArmRosNode):
         self._publisher_stop = threading.Event()
         self._motion_command_lock = threading.RLock()
         self._joint_feedback_source_tracker = SourceStampTracker()
+        self._feedback_watchdog_grace_until_s = 0.0
+        self._move_j_handover_active = False
         self._motion_fault_reason = ""
         self._cpv_stream_kind: str | None = None
         self._last_cpv_velocity_received_at: float | None = None
@@ -568,6 +570,7 @@ class SafeAgxArmRosNode(AgxArmRosNode):
                 self.control_ready
                 and self.enable_flag
                 and self.control_enabled
+                and now >= self._feedback_watchdog_grace_until_s
                 and not self._joint_feedback_source_tracker.is_fresh(
                     time.monotonic_ns(),
                     self.cpv_feedback_source_timeout_s,
@@ -613,6 +616,9 @@ class SafeAgxArmRosNode(AgxArmRosNode):
         """Immediately overwrite the seven-joint CPV velocity reference."""
 
         driver_receive_ns = time.monotonic_ns()
+        with self._motion_command_lock:
+            if self._move_j_handover_active:
+                return
         if not self._check_can_control():
             return
         if not self.is_nero or not hasattr(self.agx_arm, "move_cpv_vel"):
@@ -651,6 +657,8 @@ class SafeAgxArmRosNode(AgxArmRosNode):
             self._record_cpv_velocity_trace_age(msg)
         )
         with self._motion_command_lock:
+            if self._move_j_handover_active:
+                return
             if not self._check_can_control():
                 return
             if (
@@ -802,13 +810,20 @@ class SafeAgxArmRosNode(AgxArmRosNode):
         deadline = time.monotonic() + self.move_j_mode_handover_timeout_s
         expected = self.agx_arm.ARM_STATUS.ModeFeedback.MOVE_J
         last_mode = None
-        while time.monotonic() < deadline:
-            status = self.agx_arm.get_arm_status()
-            if status is not None:
-                last_mode = status.msg.mode_feedback
-                if last_mode == expected:
-                    return True
-            time.sleep(0.005)
+        # The caller owns the motion lock. Release it during the bounded status
+        # poll so the publisher can keep emitting unique encoder samples. Stream
+        # callbacks observe _move_j_handover_active and cannot re-enter CPV/MIT.
+        self._motion_command_lock.release()
+        try:
+            while time.monotonic() < deadline:
+                status = self.agx_arm.get_arm_status()
+                if status is not None:
+                    last_mode = status.msg.mode_feedback
+                    if last_mode == expected:
+                        return True
+                time.sleep(0.005)
+        finally:
+            self._motion_command_lock.acquire()
         self.get_logger().error(
             "Timed out waiting for firmware MOVE_J mode feedback; "
             f"last_mode_feedback={last_mode!s}"
@@ -887,6 +902,16 @@ class SafeAgxArmRosNode(AgxArmRosNode):
         self._last_forwarded_cpv_trace_label = ""
         if needs_handover:
             self.agx_arm.set_speed_percent(self.speed_percent)
+            # Give the feedback publisher one source timeout beyond the bounded
+            # firmware handshake. The status wait releases the motion lock, while
+            # the handover flag rejects any concurrent CPV/MIT stream callbacks.
+            self._feedback_watchdog_grace_until_s = max(
+                self._feedback_watchdog_grace_until_s,
+                time.monotonic()
+                + self.move_j_mode_handover_timeout_s
+                + self.cpv_feedback_source_timeout_s,
+            )
+        self._move_j_handover_active = needs_handover
         try:
             self._move_j_mode_active = send_complete_move_j(
                 self.agx_arm,
@@ -900,6 +925,8 @@ class SafeAgxArmRosNode(AgxArmRosNode):
                 f"Ignoring move_j command because firmware handover failed: {exc}"
             )
             return
+        finally:
+            self._move_j_handover_active = False
         self.is_mit_mode = False
         self._move_j_command_count += 1
         target_deg = [round(math.degrees(value), 2) for value in targets]
@@ -928,6 +955,8 @@ class SafeAgxArmRosNode(AgxArmRosNode):
 
     def _move_cpv_pos_callback(self, msg: JointState) -> None:
         with self._motion_command_lock:
+            if self._move_j_handover_active:
+                return
             self._stop_cpv_velocity_locked("CPV position handover")
             self._move_cpv_pos_callback_locked(msg)
 
@@ -1082,6 +1111,8 @@ class SafeAgxArmRosNode(AgxArmRosNode):
 
     def _move_mit_callback(self, msg: MoveMITMsg) -> None:
         with self._motion_command_lock:
+            if self._move_j_handover_active:
+                return
             self._stop_cpv_velocity_locked("MIT handover")
             self._move_mit_callback_locked(msg)
 

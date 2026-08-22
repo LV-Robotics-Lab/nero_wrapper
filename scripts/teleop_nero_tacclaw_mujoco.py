@@ -14,13 +14,12 @@ import os
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 WRAPPER_ROOT = SCRIPT_DIR.parent
@@ -39,6 +38,11 @@ from prometheus.nodes.sensors.datamaster import (  # noqa: E402
     configure_subscriber_socket,
     decode_datamaster_multipart,
 )
+from prometheus.nodes.sensors.xrobotoolkit import (  # noqa: E402
+    DEFAULT_SDK_LIBRARY_PATH,
+    XRobotToolkitSample,
+    _read_xr_sample,
+)
 from visualize_nero_tacclaw_assembly import (  # noqa: E402
     CAPTURED_JOINTS,
     IK_READY_JOINTS,
@@ -47,7 +51,6 @@ from visualize_nero_tacclaw_assembly import (  # noqa: E402
     _joint_vector,
     _set_joint_pose,
 )
-
 
 DEFAULT_URDF = (
     WRAPPER_ROOT
@@ -112,13 +115,31 @@ def _matrix3(value: str) -> np.ndarray:
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Teleoperate the dual-NERO + TacClaw MuJoCo model directly from "
-            "DataMaster ZMQ input. No robot or gripper hardware is opened."
+            "Teleoperate the dual-NERO + TacClaw MuJoCo model from DataMaster "
+            "or native XRoboToolkit input. No robot or gripper hardware is opened."
         )
     )
     parser.add_argument("--urdf", type=Path, default=DEFAULT_URDF)
+    parser.add_argument(
+        "--input",
+        choices=("datamaster", "xrobotoolkit"),
+        default="datamaster",
+        help="operator input source (default: datamaster)",
+    )
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     parser.add_argument("--receive-hwm", type=int, default=8)
+    parser.add_argument(
+        "--xr-sdk-library",
+        type=Path,
+        default=Path(DEFAULT_SDK_LIBRARY_PATH),
+    )
+    parser.add_argument("--xr-publish-hz", type=_positive_float, default=100.0)
+    parser.add_argument(
+        "--xr-source-gap-timeout-s",
+        type=_positive_float,
+        default=1.0,
+    )
+    parser.add_argument("--xr-grip-threshold", type=_unit_interval, default=0.9)
     parser.add_argument(
         "--log-jsonl",
         type=Path,
@@ -200,6 +221,8 @@ def _arguments() -> argparse.Namespace:
         parser.error("--receive-hwm must be in 1..64")
     if args.control_hz > 240.0:
         parser.error("--control-hz must not exceed 240 Hz")
+    if args.xr_publish_hz > 250.0:
+        parser.error("--xr-publish-hz must not exceed 250 Hz")
     if args.headless and args.duration_s <= 0.0:
         parser.error("--headless requires a positive --duration-s")
     if np.linalg.det(args.orientation_matrix) < 0.0:
@@ -329,6 +352,232 @@ class DataMasterReceiver:
                 context.term()
 
 
+class XRobotToolkitReceiver:
+    """Read native Quest controllers and expose latest headset-relative samples."""
+
+    def __init__(
+        self,
+        *,
+        sdk_library_path: Path,
+        publish_hz: float,
+        source_gap_timeout_s: float,
+        grip_threshold: float,
+    ) -> None:
+        import ctypes
+
+        library = Path(sdk_library_path).expanduser().resolve()
+        if not library.is_file():
+            raise FileNotFoundError(f"XRoboToolkit runtime library not found: {library}")
+        ctypes.CDLL(str(library), mode=ctypes.RTLD_GLOBAL)
+        try:
+            import xrobotoolkit_sdk as xrt
+        except ImportError as exc:
+            raise RuntimeError(
+                "xrobotoolkit_sdk is required for native Quest input"
+            ) from exc
+
+        self.xrt = xrt
+        self.publish_hz = float(publish_hz)
+        self.source_gap_timeout_s = float(source_gap_timeout_s)
+        self.grip_threshold = float(grip_threshold)
+        self._slot = _LatestSampleSlot()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._receive_loop,
+            name="xrobotoolkit_mujoco_receiver",
+            daemon=True,
+        )
+        self._thread.start()
+
+    @property
+    def discarded_messages(self) -> int:
+        return self._slot.discarded_messages
+
+    def latest(self, now_s: float) -> tuple[DataMasterSample | None, float | None]:
+        del now_s
+        return self._slot.consume()
+
+    def close(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2.0)
+        if self._thread.is_alive():
+            raise RuntimeError("XRoboToolkit receiver thread did not stop")
+
+    def _receive_loop(self) -> None:
+        initialized = False
+        last_source_timestamp_ns: int | None = None
+        last_source_advance_s = time.monotonic()
+        fault_latched = False
+        period_s = 1.0 / self.publish_hz
+        next_tick_s = time.monotonic()
+        try:
+            self.xrt.init()
+            initialized = True
+            while not self._stop.is_set():
+                now_s = time.monotonic()
+                input_error: Exception | None = None
+                try:
+                    sample = _read_xr_sample(self.xrt)
+                    source_timestamp_ns = int(sample.source_timestamp_ns)
+                    if last_source_timestamp_ns is None or (
+                        source_timestamp_ns > last_source_timestamp_ns
+                    ):
+                        self._slot.publish(
+                            _xrobotoolkit_sample_to_datamaster(
+                                sample,
+                                grip_threshold=self.grip_threshold,
+                            ),
+                            received_s=time.monotonic(),
+                        )
+                        last_source_timestamp_ns = source_timestamp_ns
+                        last_source_advance_s = now_s
+                        fault_latched = False
+                    elif source_timestamp_ns < last_source_timestamp_ns:
+                        raise ValueError(
+                            "Quest source timestamp moved backwards: "
+                            f"{source_timestamp_ns} < {last_source_timestamp_ns}"
+                        )
+                    elif now_s - last_source_advance_s > self.source_gap_timeout_s:
+                        raise TimeoutError(
+                            "Quest source timestamp has not advanced for "
+                            f"{now_s - last_source_advance_s:.3f}s"
+                        )
+
+                except Exception as exc:
+                    input_error = exc
+
+                if (
+                    input_error is not None
+                    and not fault_latched
+                    and now_s - last_source_advance_s >= self.source_gap_timeout_s
+                ):
+                    fault_latched = True
+                    last_source_timestamp_ns = None
+                    self._slot.publish_error(
+                        ValueError(
+                            "Quest tracking unavailable; clutches disarmed: "
+                            f"{type(input_error).__name__}: {input_error}"
+                        )
+                    )
+                next_tick_s += period_s
+                delay_s = next_tick_s - time.monotonic()
+                if delay_s > 0.0:
+                    self._stop.wait(delay_s)
+                else:
+                    next_tick_s = time.monotonic()
+        except Exception as exc:
+            if not self._stop.is_set():
+                self._slot.publish_error(
+                    RuntimeError(
+                        f"XRoboToolkit receiver failed: {type(exc).__name__}: {exc}"
+                    )
+                )
+        finally:
+            if initialized:
+                try:
+                    self.xrt.close()
+                except Exception:
+                    pass
+
+
+def _xrobotoolkit_sample_to_datamaster(
+    sample: XRobotToolkitSample,
+    *,
+    grip_threshold: float,
+) -> DataMasterSample:
+    headset = _xyzw_pose_transform(sample.headset_pose_xyzw)
+    world_to_local = _headset_yaw_world_to_local(headset)
+    left = world_to_local @ _xyzw_pose_transform(sample.left_pose_xyzw)
+    right = world_to_local @ _xyzw_pose_transform(sample.right_pose_xyzw)
+    return DataMasterSample(
+        left_pose=_transform_to_wire_pose(left),
+        right_pose=_transform_to_wire_pose(right),
+        left_joints=(0.0,) * 7,
+        right_joints=(0.0,) * 7,
+        left_clutch=float(sample.left_grip) > float(grip_threshold),
+        right_clutch=float(sample.right_grip) > float(grip_threshold),
+        left_trigger=float(sample.left_trigger),
+        right_trigger=float(sample.right_trigger),
+        left_glove=(0.0,) * 15,
+        right_glove=(0.0,) * 15,
+        left_glove_raw=(0.0,) * 15,
+        right_glove_raw=(0.0,) * 15,
+    )
+
+
+def _xyzw_pose_transform(values: Sequence[float]) -> np.ndarray:
+    vector = np.asarray(values, dtype=np.float64)
+    if vector.shape != (7,) or not np.all(np.isfinite(vector)):
+        raise ValueError("XR pose must contain seven finite values")
+    return _wire_pose_transform(
+        (vector[0], vector[1], vector[2], vector[6], *vector[3:6])
+    )
+
+
+def _headset_yaw_world_to_local(headset: np.ndarray) -> np.ndarray:
+    transform = np.asarray(headset, dtype=np.float64).reshape(4, 4)
+    backward = transform[:3, 2].copy()
+    backward[1] = 0.0
+    norm = float(np.linalg.norm(backward))
+    if norm < 1.0e-6:
+        raise ValueError("headset forward axis cannot define a horizontal frame")
+    backward /= norm
+    up = np.asarray([0.0, 1.0, 0.0], dtype=np.float64)
+    right = np.cross(up, backward)
+    right /= float(np.linalg.norm(right))
+    local_to_world_rotation = np.column_stack((right, up, backward))
+    world_to_local = np.eye(4, dtype=np.float64)
+    world_to_local[:3, :3] = local_to_world_rotation.T
+    world_to_local[:3, 3] = -local_to_world_rotation.T @ transform[:3, 3]
+    return world_to_local
+
+
+def _transform_to_wire_pose(transform: np.ndarray) -> tuple[float, ...]:
+    matrix = np.asarray(transform, dtype=np.float64).reshape(4, 4)
+    quaternion = _rotation_matrix_to_quaternion_wxyz(matrix[:3, :3])
+    return (*tuple(float(value) for value in matrix[:3, 3]), *quaternion)
+
+
+def _rotation_matrix_to_quaternion_wxyz(
+    rotation: np.ndarray,
+) -> tuple[float, float, float, float]:
+    matrix = np.asarray(rotation, dtype=np.float64).reshape(3, 3)
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("rotation matrix must be finite")
+    trace = float(np.trace(matrix))
+    if trace > 0.0:
+        scale = math.sqrt(trace + 1.0) * 2.0
+        w = 0.25 * scale
+        x = (matrix[2, 1] - matrix[1, 2]) / scale
+        y = (matrix[0, 2] - matrix[2, 0]) / scale
+        z = (matrix[1, 0] - matrix[0, 1]) / scale
+    else:
+        index = int(np.argmax(np.diag(matrix)))
+        if index == 0:
+            scale = math.sqrt(1.0 + matrix[0, 0] - matrix[1, 1] - matrix[2, 2]) * 2.0
+            w = (matrix[2, 1] - matrix[1, 2]) / scale
+            x = 0.25 * scale
+            y = (matrix[0, 1] + matrix[1, 0]) / scale
+            z = (matrix[0, 2] + matrix[2, 0]) / scale
+        elif index == 1:
+            scale = math.sqrt(1.0 + matrix[1, 1] - matrix[0, 0] - matrix[2, 2]) * 2.0
+            w = (matrix[0, 2] - matrix[2, 0]) / scale
+            x = (matrix[0, 1] + matrix[1, 0]) / scale
+            y = 0.25 * scale
+            z = (matrix[1, 2] + matrix[2, 1]) / scale
+        else:
+            scale = math.sqrt(1.0 + matrix[2, 2] - matrix[0, 0] - matrix[1, 1]) * 2.0
+            w = (matrix[1, 0] - matrix[0, 1]) / scale
+            x = (matrix[0, 2] + matrix[2, 0]) / scale
+            y = (matrix[1, 2] + matrix[2, 1]) / scale
+            z = 0.25 * scale
+    quaternion = np.asarray([w, x, y, z], dtype=np.float64)
+    quaternion /= float(np.linalg.norm(quaternion))
+    if quaternion[0] < 0.0:
+        quaternion *= -1.0
+    return tuple(float(value) for value in quaternion)  # type: ignore[return-value]
+
+
 class DemoSource:
     """Synthetic clutch-anchored motion for validating the model without a device."""
 
@@ -367,6 +616,10 @@ class DemoSource:
                 right_clutch=engaged,
                 left_trigger=trigger_phase,
                 right_trigger=trigger_phase,
+                left_glove=(0.0,) * 15,
+                right_glove=(0.0,) * 15,
+                left_glove_raw=(0.0,) * 15,
+                right_glove_raw=(0.0,) * 15,
             ),
             now_s,
         )
@@ -397,7 +650,7 @@ class MuJoCoTeleopJsonlLogger:
         path: Path,
         *,
         args: argparse.Namespace,
-        controller: "MuJoCoTeleopController",
+        controller: Any,
         joint_offsets: Mapping[str, Sequence[float]],
         joint_signs: Mapping[str, Sequence[float]],
     ) -> None:
@@ -426,6 +679,7 @@ class MuJoCoTeleopJsonlLogger:
                 "type": "metadata",
                 "schema": self.SCHEMA,
                 "wall_time_ns": time.time_ns(),
+                "operator_input": str(getattr(args, "input", "datamaster")),
                 "endpoint": str(args.endpoint),
                 "pose": str(args.pose),
                 "control_hz": float(args.control_hz),
@@ -1032,8 +1286,8 @@ def _status_line(
 
 def _run_loop(
     args: argparse.Namespace,
-    source: DataMasterReceiver | DemoSource,
-    controller: MuJoCoTeleopController,
+    source: DataMasterReceiver | XRobotToolkitReceiver | DemoSource,
+    controller: Any,
     viewer: Any | None,
     logger: MuJoCoTeleopJsonlLogger | None = None,
 ) -> None:
@@ -1063,7 +1317,7 @@ def _run_loop(
             latest_sample = None
             last_rx_s = None
             if not input_faulted:
-                print(f"DataMaster input rejected: {exc}", file=sys.stderr)
+                print(f"{args.input} input rejected: {exc}", file=sys.stderr)
             input_faulted = True
             for interlock in interlocks.values():
                 interlock.fault()
@@ -1185,14 +1439,30 @@ def main() -> None:
             joint_offsets=offsets,
             joint_signs=signs,
         )
-    source: DataMasterReceiver | DemoSource
-    source = DemoSource() if args.demo else DataMasterReceiver(
-        endpoint=args.endpoint, receive_hwm=args.receive_hwm
-    )
-    mode = "synthetic demo" if args.demo else args.endpoint
+    source: DataMasterReceiver | XRobotToolkitReceiver | DemoSource
+    if args.demo:
+        source = DemoSource()
+        mode = "synthetic demo"
+    elif args.input == "xrobotoolkit":
+        source = XRobotToolkitReceiver(
+            sdk_library_path=args.xr_sdk_library,
+            publish_hz=args.xr_publish_hz,
+            source_gap_timeout_s=args.xr_source_gap_timeout_s,
+            grip_threshold=args.xr_grip_threshold,
+        )
+        mode = "native Quest controllers (latest raw samples)"
+    else:
+        source = DataMasterReceiver(
+            endpoint=args.endpoint,
+            receive_hwm=args.receive_hwm,
+        )
+        mode = args.endpoint
     print(f"MuJoCo-only teleop input: {mode}")
-    print("Mapping: DataMaster left -> arm_b/left claw; right -> arm_a/right claw")
-    print("Both sides use the same DataMaster-to-lab_world axis mapping")
+    print("Controller/model: same DataMaster MuJoCo path; input receiver only changed")
+    print(f"Mapping: {args.input} left -> arm_b/left claw; right -> arm_a/right claw")
+    if args.input == "xrobotoolkit" and not args.demo:
+        print("Quest poses are headset-yaw-relative before the fixed axis mapping")
+    print("Both sides use the same operator-to-lab_world axis mapping")
     print("Release both clutches for 0.25 s after startup or an input gap.")
     if logger is not None:
         print(f"Per-frame diagnostic log: {logger.path}")
